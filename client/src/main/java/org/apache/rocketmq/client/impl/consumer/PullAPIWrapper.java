@@ -186,6 +186,7 @@ public class PullAPIWrapper {
             requestHeader.setMaxMsgNums(maxNums);
             requestHeader.setSysFlag(sysFlagInner);
             requestHeader.setCommitOffset(commitOffset);
+            //是设置 Broker 长阻塞时间 ，默认设置是 15 秒，注意是 Broker 在没有新消息的时候才阻塞，有消息会立刻返回
             requestHeader.setSuspendTimeoutMillis(brokerSuspendMaxTimeMillis);
             requestHeader.setSubscription(subExpression);
             requestHeader.setSubVersion(subVersion);

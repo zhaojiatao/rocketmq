@@ -19,10 +19,12 @@ package org.apache.rocketmq.client.consumer;
 public enum PullStatus {
     /**
      * Founded
+     * 获取到消息
      */
     FOUND,
     /**
      * No new message can be pull
+     * 没有新的消息
      */
     NO_NEW_MSG,
     /**

@@ -24,6 +24,11 @@ import org.apache.rocketmq.client.consumer.PullResult;
 import org.apache.rocketmq.client.exception.MQClientException;
 import org.apache.rocketmq.common.message.MessageQueue;
 
+
+/**
+ * 示例代码的处理逻辑是逐个读取某 Topic 下所有 Message Queue 的内容，
+ * 读完一遍后退出，
+ */
 public class PullConsumer {
     private static final Map<MessageQueue, Long> OFFSE_TABLE = new HashMap<MessageQueue, Long>();
 

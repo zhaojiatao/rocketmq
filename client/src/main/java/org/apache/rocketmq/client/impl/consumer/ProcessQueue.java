@@ -36,7 +36,12 @@ import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.common.protocol.body.ProcessQueueInfo;
 
 /**
+ * 是消息队列的快照
  * Queue consumption snapshot
+ * 如何得知当前消息堆积的数量？如 重复处理某些消息？ 如何延迟处理某些消息？
+ * RocketMQ 定义了 个快照类 Process Queue 来解决这些问题，在 Push Consumer 运行的时候， Message Queue 有个对应的 ProcessQueue
+ * 对象，保存了这个 Message Queue 消息处理状态的快照
+ * 有了Process Queue 对象，流量控制就方便和灵活多了
  */
 public class ProcessQueue {
     public final static long REBALANCE_LOCK_MAX_LIVE_TIME =
@@ -44,7 +49,16 @@ public class ProcessQueue {
     public final static long REBALANCE_LOCK_INTERVAL = Long.parseLong(System.getProperty("rocketmq.client.rebalance.lockInterval", "20000"));
     private final static long PULL_MAX_IDLE_TIME = Long.parseLong(System.getProperty("rocketmq.client.pull.pullMaxIdleTime", "120000"));
     private final InternalLogger log = ClientLogger.getLog();
+    /**
+     * 支持重入的读写锁
+     * 这个锁会遍布在后面对消息的所有操作中
+     * 读写锁控制着多个线程对 TreeMap 对象的并发访问
+     */
     private final ReadWriteLock lockTreeMap = new ReentrantReadWriteLock();
+    /**
+     * 临时存储消息的
+     * TreeMap里以 Message Queue Offset 作为 Key ，以消息内容的引用为 Value ，保存了所有从 MessageQueue 获取到，但是还未被处理的消息；
+     */
     private final TreeMap<Long, MessageExt> msgTreeMap = new TreeMap<Long, MessageExt>();
     private final AtomicLong msgCount = new AtomicLong();
     private final AtomicLong msgSize = new AtomicLong();
@@ -63,29 +77,41 @@ public class ProcessQueue {
     private volatile boolean consuming = false;
     private volatile long msgAccCnt = 0;
 
+    /**
+     * 判断锁是否超时
+     * @return
+     */
     public boolean isLockExpired() {
         return (System.currentTimeMillis() - this.lastLockTimestamp) > REBALANCE_LOCK_MAX_LIVE_TIME;
     }
 
+    /**
+     * 拉取是否过期
+     * @return
+     */
     public boolean isPullExpired() {
         return (System.currentTimeMillis() - this.lastPullTimestamp) > PULL_MAX_IDLE_TIME;
     }
 
     /**
+     * 清理过期消息
      * @param pushConsumer
      */
     public void cleanExpiredMsg(DefaultMQPushConsumer pushConsumer) {
+        //如果是顺序消费，不处理过期消息
         if (pushConsumer.getDefaultMQPushConsumerImpl().isConsumeOrderly()) {
             return;
         }
-
+        //每次最多处理16条
         int loop = msgTreeMap.size() < 16 ? msgTreeMap.size() : 16;
         for (int i = 0; i < loop; i++) {
             MessageExt msg = null;
             try {
                 this.lockTreeMap.readLock().lockInterruptibly();
                 try {
+                    //判断是否超时（15分钟）
                     if (!msgTreeMap.isEmpty() && System.currentTimeMillis() - Long.parseLong(MessageAccessor.getConsumeStartTimeStamp(msgTreeMap.firstEntry().getValue())) > pushConsumer.getConsumeTimeout() * 60 * 1000) {
+                        //如果超时，则赋值给msg变量，后面会将其发送回broker
                         msg = msgTreeMap.firstEntry().getValue();
                     } else {
 
@@ -99,7 +125,7 @@ public class ProcessQueue {
             }
 
             try {
-
+                //把消费超时的发送回broker
                 pushConsumer.sendMessageBack(msg, 3);
                 log.info("send expire msg back. topic={}, msgId={}, storeHost={}, queueId={}, queueOffset={}", msg.getTopic(), msg.getMsgId(), msg.getStoreHost(), msg.getQueueId(), msg.getQueueOffset());
                 try {
@@ -107,6 +133,7 @@ public class ProcessQueue {
                     try {
                         if (!msgTreeMap.isEmpty() && msg.getQueueOffset() == msgTreeMap.firstKey()) {
                             try {
+                                //从本地缓存列表中remove掉
                                 removeMessage(Collections.singletonList(msg));
                             } catch (Exception e) {
                                 log.error("send expired msg exception", e);

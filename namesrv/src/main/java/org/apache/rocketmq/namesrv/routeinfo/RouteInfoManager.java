@@ -45,14 +45,47 @@ import org.apache.rocketmq.common.protocol.route.TopicRouteData;
 import org.apache.rocketmq.common.sysflag.TopicSysFlag;
 import org.apache.rocketmq.remoting.common.RemotingUtil;
 
+/**
+ * org.apache.rocketmq.namesrv.routeinfo RoutelnfoManager 中，有
+ * 变量 ，集群的状态就保存在这五个变量中
+ * NameServer 的主要工作就是维护这五个变量中存储的信
+ */
 public class RouteInfoManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
     private final static long BROKER_CHANNEL_EXPIRED_TIME = 1000 * 60 * 2;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
+    /**
+     * 这个结构的 Key topic 名称，它存储了所有 Topic
+     * 的属性信息 Value 是个 QueueData 队列的长度等于这个Topic
+     * 数据存储的 Master Broker的个数，QueueData里存储着Broker的名称、读写 queue的数量、同步标识等
+     */
     private final HashMap<String/* topic */, List<QueueData>> topicQueueTable;
+    /**
+     * 以BrokerName为索引，相同名称的 Broker 可能存在多台机器， 一个
+     * Master 和多个 Slave 这个结构存储着一个 BrokerName 对应的属性信
+     * 息，包括所属的 Cluster 名称， Master Broker 和多个 Slave Broker
+     * 的地址信息
+     */
     private final HashMap<String/* brokerName */, BrokerData> brokerAddrTable;
+    /**
+     * 存储的是集群中 cluster 信息，结果很简单，就是一个 Cluster 名称对
+     * 应一个由 BrokerName 组成的集合
+     */
     private final HashMap<String/* clusterName */, Set<String/* brokerName */>> clusterAddrTable;
+    /**
+     * 这个结构和 BrokerAddrTable 有关系，但是内容完全不同，这个结构的
+     * Key BrokerAddr ，也就是对应着一台机器， BrokerAddrTable 中的 Key
+     * BrokerName 个机器的 BrokerName 可以相同 BrokerLiveTable
+     * 存储的内容是这台 Broker 机器的实时状态，包括上次更新状态的时间
+     * 戳， NameServer 会定期检查这个时 ，超时没有更新就认为这个
+     * Broker 效了，将其从 Broker 表里清除
+     */
     private final HashMap<String/* brokerAddr */, BrokerLiveInfo> brokerLiveTable;
+    /**
+     * Filter Server 是过滤服务器，是 RocketMQ 种服务端过滤方式，一个
+     * Broker 可以有一个或多个 Filter Server 这个结构的 Keys是Broker
+     * 的地址， Value 是和这个 Broker 关联的多个 Filter Server 的地址
+     */
     private final HashMap<String/* brokerAddr */, List<String>/* Filter Server */> filterServerTable;
 
     public RouteInfoManager() {

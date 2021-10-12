@@ -73,6 +73,14 @@ public class NamesrvController {
         this.configuration.setStorePathFromConfig(this.namesrvConfig, "configStorePath");
     }
 
+    /**
+     * 第一步是初始化配置
+     * 第二步是创建NamesrvController实例，并开启两个定时任务：
+     * 每隔10s扫描一次Broker，移除处于不激活的Broker；
+     * 每隔10s打印一次KV配置。
+     * 第三步注册钩子函数，启动服务器并监听Broker。
+     * @return
+     */
     public boolean initialize() {
 
         this.kvConfigManager.load();
