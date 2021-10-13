@@ -38,7 +38,9 @@ import org.apache.rocketmq.remoting.netty.NettyServerConfig;
 import org.apache.rocketmq.remoting.netty.TlsSystemConfig;
 import org.apache.rocketmq.srvutil.FileWatchService;
 
-
+/**
+ * 用来协调各个模块的功能
+ */
 public class NamesrvController {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
 
@@ -85,13 +87,17 @@ public class NamesrvController {
 
         this.kvConfigManager.load();
 
+        //启动负责通信的服务remotingSerer, remotingServer监听一些端口，收到Broker、Client等发过来的请求后，根据请求的命令，调用不同的Processor来处理
         this.remotingServer = new NettyRemotingServer(this.nettyServerConfig, this.brokerHousekeepingService);
 
+        //启动一个默认是8个线程的线程池
         this.remotingExecutor =
             Executors.newFixedThreadPool(nettyServerConfig.getServerWorkerThreads(), new ThreadFactoryImpl("RemotingExecutorThread_"));
 
+        //主要就是DefaultRequestProcessor
         this.registerProcessor();
 
+        //启动定时执行的线程，用来扫描Broker
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override
@@ -100,6 +106,7 @@ public class NamesrvController {
             }
         }, 5, 10, TimeUnit.SECONDS);
 
+        //启动定时执行的线程，用来打印配置信息
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
 
             @Override

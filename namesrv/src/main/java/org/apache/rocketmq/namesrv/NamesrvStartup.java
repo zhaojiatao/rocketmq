@@ -41,6 +41,9 @@ import org.apache.rocketmq.srvutil.ServerUtil;
 import org.apache.rocketmq.srvutil.ShutdownHookThread;
 import org.slf4j.LoggerFactory;
 
+/**
+ * NameServer的入口
+ */
 public class NamesrvStartup {
 
     private static InternalLogger log;
@@ -51,10 +54,18 @@ public class NamesrvStartup {
         main0(args);
     }
 
+    /**
+     * mainO 函数主要完成两个功能，第一个功能是解析命令行参数，重点是解析 -c和-p参数；
+     * mainO 函数的另外一个功能是初始化Controller
+     * @param args
+     * @return
+     */
     public static NamesrvController main0(String[] args) {
 
         try {
+            //初始化controller
             NamesrvController controller = createNamesrvController(args);
+            //启动controller
             start(controller);
             String tip = "The Name Server boot success. serializeType=" + RemotingCommand.getSerializeTypeConfigInThisServer();
             log.info(tip);
@@ -68,11 +79,23 @@ public class NamesrvStartup {
         return null;
     }
 
+
+    /**
+     * 创建controller的逻辑
+     * -c命令行参数用来指定配置文件的位置；
+     * -p命令行参数用来打印所有配项的值。
+     * @param args
+     * @return
+     * @throws IOException
+     * @throws JoranException
+     */
     public static NamesrvController createNamesrvController(String[] args) throws IOException, JoranException {
+        //先向系统变量中设置变量：mq的版本号
         System.setProperty(RemotingCommand.REMOTING_VERSION_KEY, Integer.toString(MQVersion.CURRENT_VERSION));
         //PackageConflictDetect.detectFastjson();
 
         Options options = ServerUtil.buildCommandlineOptions(new Options());
+        //-c命令行参数用来指定配置文件的位置； -p命令行参数用来打印所有配项的值。
         commandLine = ServerUtil.parseCmdLine("mqnamesrv", args, buildCommandlineOptions(options), new PosixParser());
         if (null == commandLine) {
             System.exit(-1);
@@ -82,6 +105,7 @@ public class NamesrvStartup {
         final NamesrvConfig namesrvConfig = new NamesrvConfig();
         final NettyServerConfig nettyServerConfig = new NettyServerConfig();
         nettyServerConfig.setListenPort(9876);
+        //-c命令行参数用来指定配置文件的位置；
         if (commandLine.hasOption('c')) {
             String file = commandLine.getOptionValue('c');
             if (file != null) {
@@ -90,7 +114,7 @@ public class NamesrvStartup {
                 properties.load(in);
                 MixAll.properties2Object(properties, namesrvConfig);
                 MixAll.properties2Object(properties, nettyServerConfig);
-
+                //从命令行读取到配置文件路径，并设置到namesrvConfig中
                 namesrvConfig.setConfigStorePath(file);
 
                 System.out.printf("load config properties file OK, %s%n", file);
@@ -98,6 +122,8 @@ public class NamesrvStartup {
             }
         }
 
+        //-p命令行参数用来打印所有配项的值。
+        //如果有-p参数则打印之后系统会退出
         if (commandLine.hasOption('p')) {
             InternalLogger console = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_CONSOLE_NAME);
             MixAll.printObjectProperties(console, namesrvConfig);
@@ -105,6 +131,7 @@ public class NamesrvStartup {
             System.exit(0);
         }
 
+        //把命令行参数转为属性对象，再转为namesrvConfig对象
         MixAll.properties2Object(ServerUtil.commandLine2Properties(commandLine), namesrvConfig);
 
         if (null == namesrvConfig.getRocketmqHome()) {
@@ -123,6 +150,7 @@ public class NamesrvStartup {
         MixAll.printObjectProperties(log, namesrvConfig);
         MixAll.printObjectProperties(log, nettyServerConfig);
 
+        //将得到的namesrvConfig和nettyServerConfig作为参数构造NamesrvController对象
         final NamesrvController controller = new NamesrvController(namesrvConfig, nettyServerConfig);
 
         // remember all configs to prevent discard
@@ -137,6 +165,7 @@ public class NamesrvStartup {
             throw new IllegalArgumentException("NamesrvController is null");
         }
 
+        //根据解析出的配置参数， 调用 controller.initialize()来初始化
         boolean initResult = controller.initialize();
         if (!initResult) {
             controller.shutdown();
@@ -151,6 +180,7 @@ public class NamesrvStartup {
             }
         }));
 
+        //让controller开始服务
         controller.start();
 
         return controller;

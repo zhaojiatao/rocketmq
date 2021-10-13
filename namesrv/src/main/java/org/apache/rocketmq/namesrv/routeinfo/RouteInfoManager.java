@@ -46,13 +46,18 @@ import org.apache.rocketmq.common.sysflag.TopicSysFlag;
 import org.apache.rocketmq.remoting.common.RemotingUtil;
 
 /**
- * org.apache.rocketmq.namesrv.routeinfo RoutelnfoManager 中，有
- * 变量 ，集群的状态就保存在这五个变量中
- * NameServer 的主要工作就是维护这五个变量中存储的信
+ * org.apache.rocketmq.namesrv.routeinfo RoutelnfoManager中有五个变量，集群的状态就保存在这五个变量中
+ * NameServer 的主要工作就是维护这五个变量中存储的信息
  */
 public class RouteInfoManager {
     private static final InternalLogger log = InternalLoggerFactory.getLogger(LoggerName.NAMESRV_LOGGER_NAME);
     private final static long BROKER_CHANNEL_EXPIRED_TIME = 1000 * 60 * 2;
+
+    /**
+     * 可重入的读写锁
+     * 锁分为互斥锁、读写锁； 也可分为可重入锁、不可重入锁。
+     * NameServer的场景中，读取操作多，更改操作少，所以选择读写锁能大大提高效率
+     */
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     /**
      * 这个结构的 Key topic 名称，它存储了所有 Topic
@@ -459,6 +464,9 @@ public class RouteInfoManager {
         return null;
     }
 
+    /**
+     * 每隔10s扫描一次Broker，移除处于不激活的Broker
+     */
     public void scanNotActiveBroker() {
         Iterator<Entry<String, BrokerLiveInfo>> it = this.brokerLiveTable.entrySet().iterator();
         while (it.hasNext()) {
