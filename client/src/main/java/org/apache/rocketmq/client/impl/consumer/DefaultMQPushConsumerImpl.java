@@ -215,6 +215,10 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
      * 从代码中可以看出， Push Consumer 会判断获取但未处理的消息个数、消
      * 息总大小、 Offset 跨度，任何一个值超过设定的大小就隔一段时间再拉取消息，
      * 从而达到流量控制的目的 此外 Process Queue 还可以辅助实现顺序消费的逻辑
+     *
+     * 这是一个大的函数，前半部分是进行一些判断，是进行流量控制的逻辑；
+     * 中间是对返回消息结果做处理的逻辑 ；
+     * 后面是发送获取消息请求的逻辑
      * @param pullRequest 拉回来的报文包装类
      */
     public void pullMessage(final PullRequest pullRequest) {
@@ -606,6 +610,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
                 this.pullAPIWrapper.registerFilterMessageHook(filterMessageHookList);
 
                 //得到消费进度
+                //OffsetStore里存储的是当前消费者所消费的消息在队列中的偏移
                 if (this.defaultMQPushConsumer.getOffsetStore() != null) {
                     this.offsetStore = this.defaultMQPushConsumer.getOffsetStore();
                 } else {

@@ -29,6 +29,16 @@ public class MQClientManager {
     private final static InternalLogger log = ClientLogger.getLog();
     private static MQClientManager instance = new MQClientManager();
     private AtomicInteger factoryIndexGenerator = new AtomicInteger();
+
+    /**
+     * 每创建一个新的MQClientInstance，都会以clientId作为key放入Map结构中
+     * clientld 格式是“ clientIp”+@+InstanceName ”， 其中 clientIp 是客户端 机器的 IP 地址 ，一般不会变，
+     * instancename 有默认值，也可以被于动设置
+     *
+     * 普通 情况下， 个用到 RocketMQ 客户端的 Java 程序，或者说一个
+     * JVM 进程只要有 MQC!ientlnstance 实例就够了 这时候创建 个或
+     * Consumer 或者 Producer 底层使用的是 一个 MQClientlnstance 实例。
+     */
     private ConcurrentMap<String/* clientId */, MQClientInstance> factoryTable =
         new ConcurrentHashMap<String, MQClientInstance>();
 

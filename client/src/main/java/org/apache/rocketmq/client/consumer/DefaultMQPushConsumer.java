@@ -59,6 +59,9 @@ import org.apache.rocketmq.remoting.exception.RemotingException;
  * <p>
  * <strong>Thread Safety:</strong> After initialization, the instance can be regarded as thread-safe.
  * </p>
+ *
+ * DefaultMQPushConsumer类担任着上层接口的角色，具体实现都在DefaultMQPushConsumerImpl类中
+ *
  */
 public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsumer {
 
@@ -268,7 +271,7 @@ public class DefaultMQPushConsumer extends ClientConfig implements MQPushConsume
 
     /**
      * Constructor specifying consumer group.
-     *
+     * 我们常用的是这个构造函数
      * @param consumerGroup Consumer group.
      */
     public DefaultMQPushConsumer(final String consumerGroup) {
